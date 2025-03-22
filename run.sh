@@ -1,47 +1,48 @@
-# Copyright 2023 DeepMind Technologies Limited
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-# !/bin/bash
+#!/bin/bash
 set -e
 set -x
 
-virtualenv -p python3 .
-source ./bin/activate
+# Create and activate virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    python -m venv venv
+fi
+source venv/Scripts/activate
 
-pip install --require-hashes -r requirements.txt
+# Upgrade pip
+# python.exe -m pip install --upgrade pip
 
-gdown --folder https://bit.ly/alphageometry
-DATA=ag_ckpt_vocab
+# Install requirements
+# pip install -r requirements2.txt
 
+# Download data if not already downloaded
+if [ ! -d "ag_ckpt_vocab" ]; then
+    gdown --folder https://bit.ly/alphageometry
+fi
+export DATA=ag_ckpt_vocab
+
+# Clone repository if not already cloned
 MELIAD_PATH=meliad_lib/meliad
-mkdir -p $MELIAD_PATH
-git clone https://github.com/google-research/meliad $MELIAD_PATH
-export PYTHONPATH=$PYTHONPATH:$MELIAD_PATH
+if [ ! -d "$MELIAD_PATH" ]; then
+    mkdir -p $MELIAD_PATH
+    git clone https://github.com/google-research/meliad $MELIAD_PATH
+fi
 
+# Correct PYTHONPATH
+export PYTHONPATH=$(pwd)/$MELIAD_PATH
+
+# Set arguments
 DDAR_ARGS=(
   --defs_file=$(pwd)/defs.txt \
   --rules_file=$(pwd)/rules.txt \
-);
+)
 
 BATCH_SIZE=2
 BEAM_SIZE=2
 DEPTH=2
 
 SEARCH_ARGS=(
-  --beam_size=$BEAM_SIZE
-  --search_depth=$DEPTH
+  --beam_size=$BEAM_SIZE \
+  --search_depth=$DEPTH \
 )
 
 LM_ARGS=(
@@ -57,11 +58,12 @@ LM_ARGS=(
   --gin_param=DecoderOnlyLanguageModelGenerate.output_token_losses=True \
   --gin_param=TransformerTaskConfig.batch_size=$BATCH_SIZE \
   --gin_param=TransformerTaskConfig.sequence_length=128 \
-  --gin_param=Trainer.restore_state_variables=False
-);
+  --gin_param=Trainer.restore_state_variables=False \
+)
 
 echo $PYTHONPATH
 
+# Run the main script
 python -m alphageometry \
 --alsologtostderr \
 --problems_file=$(pwd)/examples.txt \
